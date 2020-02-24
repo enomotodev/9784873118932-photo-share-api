@@ -6,15 +6,32 @@ const { readFileSync } = require('fs')
 const typeDefs = readFileSync('./typeDefs.graphql', 'UTF-8')
 const resolvers = require('./resolvers')
 
-var app = express()
+const { MongoClient } = require('mongodb')
+require('dotenv').config()
 
-const server = new ApolloServer({ typeDefs, resolvers })
+async function start() {
+  const app = express()
 
-server.applyMiddleware({ app })
+  const MONGO_DB = process.env.DB_HOST
 
-app.get('/', (req, res) => res.end('Welcome to the PhotoShare API'))
-app.get('/playground', expressPlayground({ endpoint: '/graphql' }))
+  const client = await MongoClient.connect(
+    MONGO_DB,
+    { useNewUrlParser: true }
+  )
+  const db = client.db()
 
-app.listen({ port: 4000 }, () => {
-  console.log(`GraphQL Service running @ ${server.graphqlPath}`)
-})
+  const context = { db }
+
+  const server = new ApolloServer({ typeDefs, resolvers, context })
+
+  server.applyMiddleware({ app })
+
+  app.get('/', (req, res) => res.end('Welcome to the PhotoShare API'))
+  app.get('/playground', expressPlayground({ endpoint: '/graphql' }))
+
+  app.listen({ port: 4000 }, () => {
+    console.log(`GraphQL Service running @ ${server.graphqlPath}`)
+  })
+}
+
+start()
