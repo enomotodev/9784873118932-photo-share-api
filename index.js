@@ -20,13 +20,22 @@ async function start() {
   )
   const db = client.db()
 
-  const context = { db }
-
-  const server = new ApolloServer({ typeDefs, resolvers, context })
+  const server = new ApolloServer({
+    typeDefs,
+    resolvers,
+    context: async ({ req }) => {
+      const githubToken = req.headers.authorization
+      const currentUser = await db.collection('users').findOne({ githubToken })
+      return { db, currentUser }
+    }
+  })
 
   server.applyMiddleware({ app })
 
-  app.get('/', (req, res) => res.end('Welcome to the PhotoShare API'))
+  app.get('/', (req, res) => {
+    let url = `https://github.com/login/oauth/authorize?client_id=${process.env.CLIENT_ID}&scope=user`
+    res.end(`<a href="${url}">Sign In with Github</a>`)
+  })
   app.get('/playground', expressPlayground({ endpoint: '/graphql' }))
 
   app.listen({ port: 4000 }, () => {
